@@ -49,9 +49,9 @@ async function obtenerRespuestaIA(mensaje) {
 
 bot.on("message", async (msg) => {
   if (!msg.text) return;
-  const respuesta = await obtenerRespuestaIA(msg.text);
-  bot.sendMessage(msg.chat.id, respuesta);
+  bot.sendMessage(msg.chat.id, "✅ Te recibí: " + msg.text);
 });
+
 
 // Puerto para Render
 const PORT = process.env.PORT || 3000;
