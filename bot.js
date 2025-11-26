@@ -6,7 +6,8 @@ const OPENROUTER_KEY = process.env.OPENROUTER_API;
 
 // Bot en modo webhook (ideal para Render)
 const bot = new TelegramBot(TOKEN);
-bot.setWebHook(`${process.env.RENDER_EXTERNAL_URL}/bot${TOKEN}`);
+bot.setWebHook(`https://bot-primaria-3.onrender.com/bot${TOKEN}`);
+
 
 // Servidor express para Render
 const express = require("express");
