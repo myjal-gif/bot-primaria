@@ -1,60 +1,59 @@
 const TelegramBot = require("node-telegram-bot-api");
 const axios = require("axios");
 
-// =======================
-//  CONFIGURACIÓN
-// =======================
+const TOKEN = process.env.TELEGRAM_TOKEN;
+const OPENROUTER_KEY = process.env.OPENROUTER_API;
 
-// 👉 Reemplaza con tu token real
-const TOKEN = "8262198772:AAGjkEKdpe-99msWSHZL2W357j-j8puwmlM";
+// Bot en modo webhook (ideal para Render)
+const bot = new TelegramBot(TOKEN);
+bot.setWebHook(`${process.env.RENDER_EXTERNAL_URL}/bot${TOKEN}`);
 
-// 👉 Crea el bot en modo polling
-const bot = new TelegramBot(TOKEN, { polling: true });
+// Servidor express para Render
+const express = require("express");
+const app = express();
+app.use(express.json());
 
-// =======================
-//  RESPUESTA DE IA (OLLAMA)
-// =======================
+app.post(`/bot${TOKEN}`, (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
+});
+
+// Endpoint para mantener vivo
+app.get("/", (req, res) => {
+  res.send("Bot activo ✅");
+});
+
+// IA con OpenRouter
 async function obtenerRespuestaIA(mensaje) {
-    try {
-        const response = await axios.post(
-            "http://127.0.0.1:11434/api/generate",
-            {
-                model: "qwen2.5:1.5b",   // ⚡ Modelo muy rápido
-                prompt: mensaje,
-                stream: false,
-                max_tokens: 80,          // Limita texto → más velocidad
-                temperature: 0.3
-            }
-        );
+  try {
+    const response = await axios.post(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        model: "mistralai/mistral-7b-instruct",
+        messages: [{ role: "user", content: mensaje }]
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_KEY}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
 
-        return response.data.response || "No pude generar respuesta.";
-    } catch (error) {
-        console.error("❌ Error al contactar con Ollama:", error.message);
-        return "Hubo un error con la IA.";
-    }
+    return response.data.choices[0].message.content;
+  } catch (error) {
+    return "Error al conectar con la IA.";
+  }
 }
 
-// =======================
-//  MANEJO DE MENSAJES
-// =======================
-bot.onText(/\/start/, (msg) => {
-    bot.sendMessage(msg.chat.id, "👋 Hola, soy el bot de primaria con IA. ¡Pregúntame algo!");
-});
-
 bot.on("message", async (msg) => {
-    const chatId = msg.chat.id;
-    const texto = msg.text;
-
-    if (texto === "/start") return;
-
-    console.log("📩 Mensaje recibido:", texto);
-
-    const respuesta = await obtenerRespuestaIA(texto);
-
-    bot.sendMessage(chatId, respuesta);
+  if (!msg.text) return;
+  const respuesta = await obtenerRespuestaIA(msg.text);
+  bot.sendMessage(msg.chat.id, respuesta);
 });
 
-// =======================
-//  BOT INICIADO
-// =======================
-console.log("🤖 Bot de primaria con IA iniciado correctamente...");
+// Puerto para Render
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("Bot online en puerto " + PORT);
+});
