@@ -7,10 +7,13 @@ const OPENROUTER_KEY = process.env.OPENROUTER_API;
 
 const bot = new TelegramBot(TOKEN);
 
-// Webhook para Render
-bot.setWebHook(`https://bot-primaria-3.onrender.com/bot${TOKEN}`);
+// URL de tu bot en Render
+const WEBHOOK_URL = `https://bot-primaria-3.onrender.com/bot${TOKEN}`;
+bot.setWebHook(WEBHOOK_URL);
 
-// Servidor Express
+// =======================
+// SERVIDOR EXPRESS
+// =======================
 const app = express();
 app.use(express.json());
 
@@ -19,16 +22,17 @@ app.post(`/bot${TOKEN}`, (req, res) => {
   res.sendStatus(200);
 });
 
-// Ruta raíz
 app.get("/", (req, res) => {
   res.send("🤖 Bot activo y funcionando correctamente");
 });
 
-// ==========================
-// FUNCIÓN IA CON RESPUESTAS CORTAS
-// ==========================
+// =======================
+// IA INTELIGENTE CON CONTROL DE LONGITUD
+// =======================
 async function obtenerRespuestaIA(mensaje) {
   try {
+    const esRespuestaLarga = /tabla|lista|explica|desarrolla|completo/i.test(mensaje);
+
     const response = await axios.post(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -36,14 +40,16 @@ async function obtenerRespuestaIA(mensaje) {
         messages: [
           {
             role: "system",
-            content: "Responde de forma breve, clara y en máximo 3 líneas, con lenguaje sencillo para estudiantes."
+            content: esRespuestaLarga
+              ? "Responde de forma clara y completa cuando se solicite una tabla o explicación larga."
+              : "Responde de forma breve, clara y sin símbolos técnicos."
           },
           {
             role: "user",
             content: mensaje
           }
         ],
-        max_tokens: 80
+        max_tokens: esRespuestaLarga ? 400 : 80
       },
       {
         headers: {
@@ -53,36 +59,33 @@ async function obtenerRespuestaIA(mensaje) {
       }
     );
 
-    return response.data.choices[0].message.content.trim();
+    let texto = response.data.choices[0].message.content;
+
+    // 🔥 Limpieza de símbolos raros
+    texto = texto
+      .replace(/<s>|<\/s>|\[OST\]|\[\/OST\]/g, "")
+      .trim();
+
+    return texto;
   } catch (error) {
     console.error("Error IA:", error.message);
     return "❌ Hubo un problema al generar la respuesta.";
   }
 }
 
-// ==========================
-// MENSAJES DEL BOT
-// ==========================
+// =======================
+// RESPUESTA DEL BOT
+// =======================
 bot.on("message", async (msg) => {
   if (!msg.text) return;
 
-  const chatId = msg.chat.id;
-
-  // Mensaje de inicio
-  if (msg.text === "/start") {
-    return bot.sendMessage(
-      chatId,
-      "👋 Hola, soy tu bot educativo con IA.\nPregúntame lo que necesites 😊"
-    );
-  }
-
   const respuesta = await obtenerRespuestaIA(msg.text);
-  bot.sendMessage(chatId, respuesta);
+  bot.sendMessage(msg.chat.id, respuesta);
 });
 
-// ==========================
+// =======================
 // PUERTO PARA RENDER
-// ==========================
+// =======================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("✅ Bot online en puerto " + PORT);
