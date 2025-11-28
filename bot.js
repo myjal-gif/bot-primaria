@@ -5,11 +5,11 @@ const express = require("express");
 const TOKEN = process.env.TELEGRAM_TOKEN;
 const OPENROUTER_KEY = process.env.OPENROUTER_API;
 
-// Crear bot
+// Crear bot con webhook
 const bot = new TelegramBot(TOKEN);
 bot.setWebHook(`https://bot-primaria-3.onrender.com/bot${TOKEN}`);
 
-// Crear servidor para Render
+// Servidor Render
 const app = express();
 app.use(express.json());
 
@@ -22,9 +22,8 @@ app.get("/", (req, res) => {
   res.send("Bot educativo activo ✅🤖📚");
 });
 
-
 // =========================================================
-//   BOTONES TEMÁTICOS DE COMUNICACIÓN
+//   BOTONES TEMÁTICOS
 // =========================================================
 function enviarBotonesTematicos(chatId) {
   const opciones = {
@@ -34,8 +33,7 @@ function enviarBotonesTematicos(chatId) {
         ["🔤 Vocabulario", "✍️ Ortografía"],
         ["📚 Tipos de textos"]
       ],
-      resize_keyboard: true,
-      one_time_keyboard: false
+      resize_keyboard: true
     }
   };
 
@@ -46,17 +44,11 @@ function enviarBotonesTematicos(chatId) {
   );
 }
 
-
 // =========================================================
-//   DETECTOR DE TEMAS DE COMUNICACIÓN (MEJORADO)
+//  DETECTOR DE TEMAS DE COMUNICACIÓN
 // =========================================================
 function esTemaComunicacion(texto) {
   texto = texto.toLowerCase();
-
-  // Si menciona "comunicación", inmediatamente es válido
-  if (texto.includes("comunicación") || texto.includes("comunicacion")) {
-    return true;
-  }
 
   const claves = [
     "lectura", "leer", "texto", "comprensión", "comprender",
@@ -68,20 +60,19 @@ function esTemaComunicacion(texto) {
     "conectores"
   ];
 
-  return claves.some(k => texto.includes(k));
+  return claves.some(clave => texto.includes(clave));
 }
 
-
 // =========================================================
-//   IA CON OPENROUTER (CON RESPUESTAS LARGAS O CORTAS)
+//  IA (RESPUESTAS CON EMOJIS)
 // =========================================================
-async function obtenerRespuestaIA(mensaje, largo = false) {
+async function obtenerRespuestaIA(mensaje) {
   try {
     const response = await axios.post(
       "https://openrouter.ai/api/v1/chat/completions",
       {
         model: "mistralai/mistral-7b-instruct",
-        max_tokens: largo ? 600 : 350,
+        max_tokens: 500,
         temperature: 0.7,
         messages: [
           {
@@ -89,15 +80,12 @@ async function obtenerRespuestaIA(mensaje, largo = false) {
             content: `
 Eres un asistente educativo para niños de primaria del área de Comunicación.
 Responde de forma clara, divertida y fácil de entender.
-Usa emojis relacionados con lo que explicas.
+Usa emojis adecuados al tema.
 No des respuestas muy técnicas.
-Cuando sea útil, incluye ejemplos.
+Incluye ejemplos simples.
 `
           },
-          {
-            role: "user",
-            content: mensaje
-          }
+          { role: "user", content: mensaje }
         ]
       },
       {
@@ -111,23 +99,23 @@ Cuando sea útil, incluye ejemplos.
     return response.data.choices[0].message.content;
 
   } catch (error) {
-    console.error("Error IA:", error);
+    console.error("❌ Error IA:", error);
     return "😢 Ocurrió un error al responder. Intenta nuevamente.";
   }
 }
 
-
 // =========================================================
-//   MANEJO DE MENSAJES
+//  MANEJO DE MENSAJES
 // =========================================================
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
-  const texto = msg.text?.toLowerCase() || "";
+  const texto = msg.text?.toLowerCase().trim() || "";
 
   // ------------------------------
-  // Respuestas a saludos
+  // SALUDOS (solo exactos)
   // ------------------------------
-  if (["hola", "hello", "hi", "buenas"].some(s => texto.includes(s))) {
+  const saludos = ["hola", "hello", "hi", "buenas", "buenas tardes", "buenos dias"];
+  if (saludos.includes(texto)) {
     bot.sendMessage(
       chatId,
       "👋 ¡Hola! Soy tu asistente del área de *Comunicación* 📚✨\n¿En qué tema deseas ayuda?",
@@ -137,7 +125,7 @@ bot.on("message", async (msg) => {
   }
 
   // ------------------------------
-  // Comando /start
+  // /start
   // ------------------------------
   if (texto === "/start") {
     bot.sendMessage(
@@ -149,13 +137,7 @@ bot.on("message", async (msg) => {
   }
 
   // ------------------------------
-  // Botones presionados
-  // ------------------------------
-  const temasLargos = ["📖 lectura", "📝 redacción", "📚 tipos de textos"];
-  const largo = temasLargos.some(t => texto.includes(t.toLowerCase()));
-
-  // ------------------------------
-  // Si NO es tema de comunicación
+  // SI NO ES TEMA DE COMUNICACIÓN
   // ------------------------------
   if (!esTemaComunicacion(texto)) {
     return bot.sendMessage(
@@ -166,17 +148,17 @@ bot.on("message", async (msg) => {
   }
 
   // ------------------------------
-  // RESPUESTA CON IA
+  // RESPUESTA IA
   // ------------------------------
   bot.sendChatAction(chatId, "typing");
 
-  const respuesta = await obtenerRespuestaIA(texto, largo);
+  const respuesta = await obtenerRespuestaIA(texto);
 
   bot.sendMessage(chatId, respuesta);
 });
 
 
-// Puerto para Render
+// Puerto Render
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("📡 Bot online en puerto " + PORT);
