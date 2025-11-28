@@ -5,15 +5,11 @@ const express = require("express");
 const TOKEN = process.env.TELEGRAM_TOKEN;
 const OPENROUTER_KEY = process.env.OPENROUTER_API;
 
+// Crear bot
 const bot = new TelegramBot(TOKEN);
+bot.setWebHook(`https://bot-primaria-3.onrender.com/bot${TOKEN}`);
 
-// URL de tu bot en Render
-const WEBHOOK_URL = `https://bot-primaria-3.onrender.com/bot${TOKEN}`;
-bot.setWebHook(WEBHOOK_URL);
-
-// =======================
-// SERVIDOR EXPRESS
-// =======================
+// Servidor para Render
 const app = express();
 app.use(express.json());
 
@@ -23,16 +19,12 @@ app.post(`/bot${TOKEN}`, (req, res) => {
 });
 
 app.get("/", (req, res) => {
-  res.send("🤖 Bot activo y funcionando correctamente");
+  res.send("Bot educativo activo ✅🤖📚");
 });
 
-// =======================
-// IA INTELIGENTE CON CONTROL DE LONGITUD
-// =======================
+// FUNCIÓN IA MEJORADA
 async function obtenerRespuestaIA(mensaje) {
   try {
-    const esRespuestaLarga = /tabla|lista|explica|desarrolla|completo/i.test(mensaje);
-
     const response = await axios.post(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -40,16 +32,21 @@ async function obtenerRespuestaIA(mensaje) {
         messages: [
           {
             role: "system",
-            content: esRespuestaLarga
-              ? "Responde de forma clara y completa cuando se solicite una tabla o explicación larga."
-              : "Responde de forma breve, clara y sin símbolos técnicos."
+            content: `
+Eres un asistente educativo para niños de primaria.
+Responde de forma clara, divertida y fácil de entender.
+Usa emojis relacionados con lo que explicas.
+No cortes la respuesta.
+Explica paso a paso cuando sea necesario.
+`
           },
           {
             role: "user",
             content: mensaje
           }
         ],
-        max_tokens: esRespuestaLarga ? 400 : 80
+        max_tokens: 500,
+        temperature: 0.7
       },
       {
         headers: {
@@ -59,34 +56,26 @@ async function obtenerRespuestaIA(mensaje) {
       }
     );
 
-    let texto = response.data.choices[0].message.content;
-
-    // 🔥 Limpieza de símbolos raros
-    texto = texto
-      .replace(/<s>|<\/s>|\[OST\]|\[\/OST\]/g, "")
-      .trim();
-
-    return texto;
+    return response.data.choices[0].message.content;
   } catch (error) {
-    console.error("Error IA:", error.message);
-    return "❌ Hubo un problema al generar la respuesta.";
+    console.error(error);
+    return "😢 Ocurrió un error al responder. Intenta nuevamente.";
   }
 }
 
-// =======================
-// RESPUESTA DEL BOT
-// =======================
+// MENSAJES DEL USUARIO
 bot.on("message", async (msg) => {
   if (!msg.text) return;
 
+  bot.sendChatAction(msg.chat.id, "typing");
+
   const respuesta = await obtenerRespuestaIA(msg.text);
+
   bot.sendMessage(msg.chat.id, respuesta);
 });
 
-// =======================
-// PUERTO PARA RENDER
-// =======================
+// Puerto para Render
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log("✅ Bot online en puerto " + PORT);
+  console.log("📡 Bot online en puerto " + PORT);
 });
