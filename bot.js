@@ -83,7 +83,7 @@ Responde de forma clara, divertida y fácil de entender.
 Usa emojis adecuados al tema.
 No des respuestas muy técnicas.
 Incluye ejemplos simples.
-`
+            `
           },
           { role: "user", content: mensaje }
         ]
@@ -125,6 +125,18 @@ bot.on("message", async (msg) => {
   }
 
   // ------------------------------
+  // AGRADECIMIENTOS
+  // ------------------------------
+  const agradecimientos = ["gracias", "muchas gracias", "gracias bot", "gracias!"];
+  if (agradecimientos.includes(texto)) {
+    return bot.sendMessage(
+      chatId,
+      "🙌 ¡De nada! Me alegra ayudarte.\nCuando necesites más ayuda, solo escríbeme *hola* y estaré aquí para ti 📚✨",
+      { parse_mode: "Markdown" }
+    );
+  }
+
+  // ------------------------------
   // /start
   // ------------------------------
   if (texto === "/start") {
@@ -156,7 +168,6 @@ bot.on("message", async (msg) => {
 
   bot.sendMessage(chatId, respuesta);
 });
-
 
 // Puerto Render
 const PORT = process.env.PORT || 3000;
